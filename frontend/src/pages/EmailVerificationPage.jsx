@@ -1,15 +1,18 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
+import { useAuthStore } from "../store/authStore";
+import toast from "react-hot-toast";
 
 const EmailVerificationPage = () => {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef([]);
   const navigate = useNavigate();
-  const isLoading = false;
+  // const isLoading = false;
+  const { error, isLoading, verifyEmail } = useAuthStore();
 
   const handleChange = (index, value) => {
-    newCode = [...code];
+    const newCode = [...code];
 
     //Handle pasted content
     if (value.length > 1) {
@@ -25,6 +28,13 @@ const EmailVerificationPage = () => {
       const focusIndex = lastFilledIndex < 5 ? lastFilledIndex + 1 : 5;
       inputRefs.current[focusIndex].focus();
     } else {
+      newCode[index] = value;
+      setCode(newCode);
+
+      //Move focus to the next input field if value is entered
+      if (value && index < 5) {
+        inputRefs.current[index + 1].focus();
+      }
     }
   };
 
@@ -33,6 +43,25 @@ const EmailVerificationPage = () => {
       inputRefs.current[index - 1].focus();
     }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const verificationCode = code.join("");
+    try {
+      await verifyEmail(verificationCode);
+      navigate("/");
+      toast.success("Email verified successfully");
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  // Auto submit when all fields are filled
+  useEffect(() => {
+    if (code.every((digit) => digit !== "")) {
+      handleSubmit(new Event("submit"));
+    }
+  }, [code]);
 
   return (
     <div className="max-w-md w-full bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden">
@@ -47,7 +76,7 @@ const EmailVerificationPage = () => {
         </h2>
 
         <p className="text-center text-gray-300 mb-6 ">Enter the 6-digit code sent to your email address.</p>
-        <form className="spacey-6">
+        <form onSubmit={handleSubmit} className="spacey-6">
           <div className="flex justify-between">
             {code.map((digit, index) => (
               <input
@@ -62,6 +91,8 @@ const EmailVerificationPage = () => {
               />
             ))}
           </div>
+
+          {error && <p className="text-red-500 font-semibold mt-2">{error}</p>}
 
           <motion.button
             className="mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200"
